@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mafia Game Manager - Secret Role Assigner</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🕵️</text></svg>">
+</head>
+<body>
+
+    <!-- Header Navigation -->
+    <header class="app-header">
+        <div class="container header-container">
+            <div class="brand">
+                <span class="brand-icon">🕵️‍♂️</span>
+                <div>
+                    <h1 class="brand-title">Mafia Game Manager</h1>
+                    <p class="brand-subtitle">Offline Role Assigner &bull; Secret Email Delivery</p>
+                </div>
+            </div>
+            
+            <div class="header-right">
+                <button id="btnHeaderTimer" class="btn btn-secondary btn-sm" title="Open Discussion Timer">
+                    <span class="icon">⏱️</span> <span id="headerTimerText">01:40</span>
+                </button>
+                <div id="smtpStatusBadge" class="smtp-pill checking" title="Checking SMTP configuration">
+                    <span class="status-dot"></span>
+                    <span id="smtpStatusText">Checking SMTP...</span>
+                </div>
+                <button id="btnNewGame" class="btn btn-secondary btn-sm" title="Wipe previous game assignment and start fresh">
+                    <span class="icon">🔄</span> New Game
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="container main-content">
+
+        <!-- Top Notification Banner for Missing SMTP or Warnings -->
+        <div id="alertBanner" class="alert-banner hidden">
+            <div class="alert-content">
+                <span class="alert-icon">⚠️</span>
+                <span id="alertMessage">Alert text</span>
+            </div>
+            <button id="alertClose" class="btn-icon">&times;</button>
+        </div>
+
+        <div class="dashboard-grid">
+
+            <!-- LEFT COLUMN: Settings & Actions -->
+            <aside class="dashboard-sidebar">
+
+                <!-- Card 1: Add Player -->
+                <div class="card">
+                    <div class="card-header">
+                        <h2 class="card-title">
+                            <span class="card-icon">➕</span> Add Player
+                        </h2>
+                    </div>
+                    <div class="card-body">
+                        <form id="addPlayerForm" autocomplete="off">
+                            <div class="form-group">
+                                <label for="playerName">Player Name</label>
+                                <input type="text" id="playerName" class="form-control" placeholder="e.g. Alice" required maxlength="60">
+                            </div>
+                            <div class="form-group">
+                                <label for="playerEmail">Email Address</label>
+                                <input type="email" id="playerEmail" class="form-control" placeholder="alice@example.com" required>
+                            </div>
+                            <button type="submit" id="btnAddPlayer" class="btn btn-primary btn-block">
+                                Add to Roster
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Card 2: Role Settings Panel -->
+                <div class="card">
+                    <div class="card-header">
+                        <h2 class="card-title">
+                            <span class="card-icon">⚙️</span> Game Settings
+                        </h2>
+                    </div>
+                    <div class="card-body">
+                        
+                        <!-- Mafia Count Input (Host decides freely: 1 or 2, min 1) -->
+                        <div class="setting-item">
+                            <div class="setting-info">
+                                <label for="mafiaCount" class="setting-label">Number of Mafia</label>
+                                <p class="setting-subtext">Set freely by host (1 or 2)</p>
+                            </div>
+                            <div class="setting-control">
+                                <input type="number" id="mafiaCount" class="number-input" min="1" max="2" value="1">
+                            </div>
+                        </div>
+
+                        <!-- Doctor: Always included (1) -->
+                        <div class="setting-item">
+                            <div class="setting-info">
+                                <span class="setting-label">Doctor</span>
+                                <p class="setting-subtext">Always included</p>
+                            </div>
+                            <div class="setting-control">
+                                <span class="badge badge-fixed">1 (Fixed)</span>
+                            </div>
+                        </div>
+
+                        <!-- Detective: Host ON/OFF Toggle -->
+                        <div class="setting-item">
+                            <div class="setting-info">
+                                <label for="toggleDetective" class="setting-label">Detective</label>
+                                <p class="setting-subtext">Include investigator role</p>
+                            </div>
+                            <div class="setting-control">
+                                <label class="switch">
+                                    <input type="checkbox" id="toggleDetective" checked>
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Mafia Know Each Other Toggle -->
+                        <div class="setting-item">
+                            <div class="setting-info">
+                                <label for="toggleMafiaKnow" class="setting-label">Mafia Know Each Other</label>
+                                <p class="setting-subtext">If multiple, Mafia emails list partners</p>
+                            </div>
+                            <div class="setting-control">
+                                <label class="switch">
+                                    <input type="checkbox" id="toggleMafiaKnow" checked>
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Live Summary of COUNTS ONLY -->
+                        <div class="live-summary-box">
+                            <div class="summary-header">
+                                <span class="summary-title">Live Breakdown (Counts Only)</span>
+                                <span id="activePlayerCountBadge" class="badge badge-count">0 Players</span>
+                            </div>
+                            <div id="liveSummaryText" class="summary-pills">
+                                <!-- Generated dynamically -->
+                                <span class="role-pill pill-mafia">1 Mafia</span>
+                                <span class="role-pill pill-doctor">1 Doctor</span>
+                                <span class="role-pill pill-detective">1 Detective</span>
+                                <span class="role-pill pill-citizen">0 Citizens</span>
+                            </div>
+                            <div id="validationWarning" class="validation-box hidden">
+                                <span class="warning-icon">⚠️</span>
+                                <span id="validationWarningText">Requires at least 4 active players.</span>
+                            </div>
+                        </div>
+
+                        <!-- Assign & Send Primary Action Button -->
+                        <button id="btnAssignAndSend" class="btn btn-accent btn-block btn-lg" disabled>
+                            <span class="btn-icon-text">✉️ Assign Roles & Send Emails</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Card 3: Discussion Timer (Stopwatch) -->
+                <div class="card timer-card">
+                    <div class="card-header">
+                        <h2 class="card-title">
+                            <span class="card-icon">⏱️</span> Discussion Timer
+                        </h2>
+                        <div class="timer-header-tools">
+                            <button id="btnTimerSound" class="btn-icon" title="Toggle sound notification">🔊</button>
+                            <button id="btnTimerExpand" class="btn-icon" title="Expand Fullscreen Discussion Timer">⛶</button>
+                        </div>
+                    </div>
+                    <div class="card-body timer-card-body">
+                        <!-- Digital Countdown Display -->
+                        <div class="timer-display-wrap">
+                            <div id="timerDisplay" class="timer-display">01:40</div>
+                            <div id="timerStatusPill" class="timer-status-pill ready">Ready</div>
+                        </div>
+
+                        <!-- Progress Bar -->
+                        <div class="timer-progress-track">
+                            <div id="timerProgressBar" class="timer-progress-bar" style="width: 100%;"></div>
+                        </div>
+
+                        <!-- Main Controls -->
+                        <div class="timer-main-controls">
+                            <button id="btnTimerStartPause" class="btn btn-primary btn-timer-main">
+                                <span id="timerPlayIcon">▶</span> <span id="timerPlayText">Start</span>
+                            </button>
+                            <button id="btnTimerReset" class="btn btn-secondary" title="Reset back to starting time">
+                                ↺ Reset
+                            </button>
+                        </div>
+
+                        <!-- Quick Time Adjusters (+30s / -10s) -->
+                        <div class="timer-quick-adjust">
+                            <button id="btnTimerSub10" class="btn btn-ghost btn-xs">-10s</button>
+                            <button id="btnTimerAdd30" class="btn btn-ghost btn-xs">+30s</button>
+                            <button id="btnTimerAdd60" class="btn btn-ghost btn-xs">+60s</button>
+                        </div>
+
+                        <!-- Presets & Custom Duration -->
+                        <div class="timer-settings-wrap">
+                            <div class="timer-preset-bar">
+                                <span class="timer-preset-label">Presets:</span>
+                                <button class="btn-preset" data-seconds="60">60s</button>
+                                <button class="btn-preset active" data-seconds="100">100s</button>
+                                <button class="btn-preset" data-seconds="120">120s</button>
+                                <button class="btn-preset" data-seconds="180">180s</button>
+                            </div>
+
+                            <div class="timer-custom-input-line">
+                                <label for="timerCustomInput">Set Seconds:</label>
+                                <div class="timer-input-group">
+                                    <input type="number" id="timerCustomInput" class="number-input timer-input" value="100" min="5" max="999">
+                                    <button id="btnSetCustomTimer" class="btn btn-ghost btn-sm">Set</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </aside>
+
+            <!-- RIGHT COLUMN: Player Roster Table -->
+            <section class="dashboard-main">
+                <div class="card roster-card">
+                    <div class="card-header roster-header">
+                        <div>
+                            <h2 class="card-title">
+                                <span class="card-icon">👥</span> Player Roster
+                                <span id="totalRosterBadge" class="badge badge-neutral">0 Total</span>
+                            </h2>
+                            <p class="card-subtext">Toggle ON players participating in this game.</p>
+                        </div>
+                        <div class="roster-actions">
+                            <button id="btnSelectAll" class="btn btn-ghost btn-sm" title="Include all saved players">
+                                Select All
+                            </button>
+                            <button id="btnDeselectAll" class="btn btn-ghost btn-sm" title="Skip all saved players">
+                                Deselect All
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Search / Quick Filter -->
+                    <div class="table-filter-bar">
+                        <input type="text" id="rosterSearch" class="form-control form-control-sm" placeholder="🔍 Search players by name or email...">
+                        <div class="filter-stats">
+                            <span id="activeInGameCount">0</span> in game &bull; <span id="inactiveCount">0</span> skipped
+                        </div>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="table" id="playersTable">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Email</th>
+                                    <th class="text-center" style="width: 140px;">In Game</th>
+                                    <th class="text-right" style="width: 80px;">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="playersTableBody">
+                                <!-- Populated dynamically by JS -->
+                                <tr id="emptyRow" class="empty-state-row">
+                                    <td colspan="4" class="text-center py-5">
+                                        <div class="empty-state">
+                                            <span class="empty-icon">📭</span>
+                                            <p class="empty-title">No players saved yet</p>
+                                            <p class="empty-subtitle">Use the form on the left to add your first player.</p>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+        </div>
+    </main>
+
+    <!-- Confirmation Modal (Before Assigning & Sending) -->
+    <div id="confirmModal" class="modal-overlay hidden">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3 class="modal-title">Confirm Secret Role Assignment</h3>
+                <button class="modal-close" data-close="confirmModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="confirm-icon-box">🎲</div>
+                <h4 class="confirm-heading">Ready to Shuffle & Send?</h4>
+                <p class="confirm-description">
+                    This will randomly assign secret roles in server memory and immediately email each player their individual role.
+                </p>
+
+                <div class="confirm-summary-card">
+                    <div class="confirm-summary-line">
+                        <span>Active Players:</span>
+                        <strong id="confirmActiveCount">0</strong>
+                    </div>
+                    <div class="confirm-summary-line">
+                        <span>Role Breakdown:</span>
+                        <strong id="confirmBreakdownText">...</strong>
+                    </div>
+                    <div class="confirm-summary-line">
+                        <span>Mafia Know Each Other:</span>
+                        <strong id="confirmMafiaKnow">Yes</strong>
+                    </div>
+                </div>
+
+                <div class="privacy-notice">
+                    🔒 <strong>Strict Privacy:</strong> As the host, you will NOT see any assigned roles. Only delivery status (Sent/Failed) will be shown.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" data-close="confirmModal">Cancel</button>
+                <button id="btnConfirmSend" class="btn btn-accent">Yes, Shuffle & Send Now</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delivery Status Modal -->
+    <div id="deliveryModal" class="modal-overlay hidden">
+        <div class="modal-card modal-lg">
+            <div class="modal-header">
+                <h3 class="modal-title">Email Delivery Status</h3>
+                <button class="modal-close" data-close="deliveryModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                
+                <!-- Status Banner -->
+                <div id="deliveryStatusBanner" class="delivery-banner in-progress">
+                    <div class="spinner-small" id="deliverySpinner"></div>
+                    <div>
+                        <h4 id="deliveryBannerHeading" class="delivery-heading">Sending Role Emails...</h4>
+                        <p id="deliveryBannerSubtext" class="delivery-subtext">Please wait while individual emails are sent via Gmail SMTP.</p>
+                    </div>
+                </div>
+
+                <!-- Delivery Table: Shows ONLY Name, Email, Status, and Error (NEVER roles) -->
+                <div class="table-responsive modal-table-wrap">
+                    <table class="table table-bordered">
+                        <thead>
+                            <tr>
+                                <th>Player</th>
+                                <th>Email</th>
+                                <th class="text-center" style="width: 120px;">Delivery</th>
+                                <th>Details / Error</th>
+                            </tr>
+                        </thead>
+                        <tbody id="deliveryTableBody">
+                            <!-- Populated dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+
+            </div>
+            <div class="modal-footer">
+                <button id="btnRetryFailed" class="btn btn-warning hidden">
+                    <span class="icon">🔄</span> Retry Failed Emails Only
+                </button>
+                <button class="btn btn-secondary" data-close="deliveryModal">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Fullscreen / Focus Discussion Timer Modal -->
+    <div id="focusTimerModal" class="modal-overlay hidden">
+        <div class="modal-card modal-timer-focus">
+            <div class="modal-header">
+                <h3 class="modal-title">🗣️ Day Discussion Timer</h3>
+                <button class="modal-close" data-close="focusTimerModal">&times;</button>
+            </div>
+            <div class="modal-body text-center focus-timer-body">
+                <p class="focus-timer-label">Town Discussion in Progress</p>
+                <div id="focusTimerDisplay" class="focus-timer-clock">01:40</div>
+                <div id="focusTimerStatusPill" class="timer-status-pill ready mb-4">Ready</div>
+
+                <div class="timer-progress-track focus-progress-track">
+                    <div id="focusTimerProgressBar" class="timer-progress-bar" style="width: 100%;"></div>
+                </div>
+
+                <div class="focus-timer-controls">
+                    <button id="btnFocusTimerSub10" class="btn btn-ghost btn-sm">-10s</button>
+                    <button id="btnFocusTimerStartPause" class="btn btn-primary btn-lg px-5">
+                        <span id="focusTimerPlayIcon">▶</span> <span id="focusTimerPlayText">Start</span>
+                    </button>
+                    <button id="btnFocusTimerReset" class="btn btn-secondary btn-lg">↺ Reset</button>
+                    <button id="btnFocusTimerAdd30" class="btn btn-ghost btn-sm">+30s</button>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <span class="focus-timer-tip">💡 Tip: Press Spacebar to Start/Pause, R to Reset.</span>
+                <button class="btn btn-secondary" data-close="focusTimerModal">Close View</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification Container -->
+    <div id="toastContainer" class="toast-container"></div>
+
+    <script src="/static/js/app.js"></script>
+</body>
+</html>

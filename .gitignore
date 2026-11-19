@@ -1,0 +1,53 @@
+# ==============================================================================
+# Mafia Game Manager - .gitignore
+# ==============================================================================
+
+# 1. Environment Variables & Secret Credentials (CRITICAL)
+# Never commit your Gmail address or Google App Password!
+.env
+.env.local
+.env.*.local
+*.env
+
+# 2. Local Database & Persistent Storage
+# Keeps local player database and test databases on host machine only
+*.db
+*.sqlite
+*.sqlite3
+mafia.db
+test_mafia.db
+
+# 3. Python Bytecode, Caches & Compiles
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# 4. Virtual Environments
+venv/
+.venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# 5. Testing & Coverage
+.cache/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# 6. IDEs, Editors & OS Files
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
+*.swo
+*~
